@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map Interface</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/georaster"></script>
+  <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+<!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .full-height {
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Set a fixed height for the map */
+    #map {
+      height: 100%; /* Occupy the full height of the middle section */
+    }
+
+    /* Tooltip styling */
+    #fixed-tooltip {
+      position: fixed;
+      top: 100px;
+      left: 60%;
+      transform: translateX(50%);
+      width: auto;
+      min-width: 250px;
+      max-width: 400px;
+      background: white;
+      border: 1px solid black;
+      padding: 10px;
+      font-size: 14px;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+      display: none;
+      z-index: 9999 !important;
+    }
+
+    #fixed-tooltip table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+    }
+
+    #fixed-tooltip td {
+      padding: 5px;
+      text-align: left;
+      white-space: normal;
+      word-wrap: break-word;
+      max-width: 100%;
+    }
+
+    #fixed-tooltip tr:nth-child(even) td {
+      background-color: #f2f2f2;
+    }
+
+    #fixed-tooltip tr td {
+      border: 1px solid #ddd;
+    }
+
+    /* Responsive Styling */
+    @media screen and (max-width: 1200px) {
+      #fixed-tooltip {
+        left: 55%;
+        transform: translateX(0);
+      }
+    }
+
+    @media screen and (max-width: 800px) {
+      #fixed-tooltip {
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 300px;
+      }
+    }
+
+    /* Adjust the layout of input, map, and output sections */
+    .input-section {
+      background-color: #f8f9fa;
+      padding: 15px;
+    }
+
+    .output-section {
+      background-color: #f8f9fa;
+      padding: 15px;
+    }
+
+    /* Add spacing between map and input/output sections */
+    .map-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    .map-wrapper {
+      width: 100%;
+    }
+
+    .left-right-wrapper {
+      display: flex;
+      width: 100%;
+    }
+
+    .left-section {
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .map-wrapper {
+      flex: 2;
+    }
+
+    .right-section {
+      flex: 1;
+      max-width: 300px;
+    }
+
+    /* Adjust layout for smaller screens */
+    @media screen and (max-width: 768px) {
+      .map-container {
+        flex-direction: column;
+      }
+
+      .left-section,
+      .map-wrapper,
+      .right-section {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container-fluid">
+    <div class="row full-height">
+
+      <!-- Left Section: Input Form -->
+      <div class="col-md-3 p-3 input-section">
+        <!-- Groundwater Level Selection -->
+        <label for="gwSelect"><b>Groundwater Levels:</b></label>
+        <select id="gwSelect" class="form-select mb-3">
+            <option value="" disabled selected>Select an option</option>
+            <option value="existing">Select Existing</option>
+            <option value="new">Add New Well</option>
+        </select>
+    
+        <!-- Existing Database Dropdown (Hidden Initially) -->
+        <div id="existingOptions" style="display: none;">
+           
+    
+            <!-- Year Dropdown -->
+            <label for="yearSelect"><b>Select Year:</b></label>
+            <select id="yearSelect" class="form-select mb-3">
+                <option value="2011">2011</option>
+                <option value="2012">2012</option>
+                <option value="2013">2013</option>
+                <option value="2014">2014</option>
+                <option value="2015">2015</option>
+                <option value="2016">2016</option>
+                <option value="2017">2017</option>
+                <option value="2018">2018</option>
+                <option value="2019">2019</option>
+                <option value="2020">2020</option>
+            </select>
+    
+            <!-- Monsoon Dropdown -->
+            <label for="monsoonSelect"><b>Select Monsoon:</b></label>
+            <select id="monsoonSelect" class="form-select mb-3">
+                <option value="pre">Pre Monsoon</option>
+                <option value="post">Post Monsoon</option>
+            </select>
+        </div>
+    
+        <!-- Add New Well (File Upload) -->
+        <div id="newWellInput" style="display: none;">
+            <label for="fileInput"><b>Upload Data File:</b></label>
+            <input type="file" id="fileInput" class="form-control mb-3">
+            <button id="uploadBtn" class="btn btn-success mb-3">Upload</button>
+            <p id="fileError" style="color: red; display: none;">Invalid file format or data error.</p>
+        </div>
+    
+        <!-- Display Raster Button -->
+        <button id="displayRasterBtn" class="btn btn-primary mb-3" style="display: none;">Display Raster</button>
+    
+        <!-- Checkboxes for Contours and Wells -->
+        <div id="checkboxContainer" style="display: none;">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="contoursCheckbox">
+                <label class="form-check-label" for="contoursCheckbox">Contours</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="wellsCheckbox">
+                <label class="form-check-label" for="wellsCheckbox">Wells</label>
+            </div>
+        </div>
+    </div>
+    
+
+      <!-- Middle Section: Map Display -->
+      <div class="col-md-6 p-0 map-container">
+        <div class="map-wrapper">
+          <div id="map" style="height: 100%; width: 100%;"></div> <!-- Only one map -->
+        </div>
+      </div>
+
+      <!-- Right Section: Output Display -->
+      <div class="col-md-3 bg-light p-3 output-section">
+        <h4 class="text-center">Output Section</h4>
+        <div id="output">
+          <p class="text-muted">Click on a district in the map to view detail</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bootstrap & Leaflet JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+ 
+
+  
+  <script>
+     console.log("GeoRasterLayer:", typeof GeoRasterLayer);
+
+let map; // Declare globally
+let rasterLayer = null; // Store raster layer reference
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Initialize the map
+    const INDIA_CENTER = [20.5937, 78.9629];
+    const INDIA_ZOOM = 5;
+
+    map = L.map("map", {
+        center: INDIA_CENTER,
+        zoom: INDIA_ZOOM,
+        minZoom: 4,
+        maxZoom: 18,
+        zoomControl: false,
+    });
+
+    // Base map layers
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Add scale control
+    L.control.scale({ imperial: false, position: "bottomright" }).addTo(map);
+});
+
+async function fetchAndDisplayRaster(year, monsoon) {
+    const apiUrl = `/gwm/get_raster_file/?year=${year}&monsoon=${monsoon}`;
+
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+        const arrayBuffer = await response.arrayBuffer();
+        console.log("Received raster data, size:", arrayBuffer.byteLength);
+
+        if (arrayBuffer.byteLength === 0) throw new Error("Empty raster file received.");
+
+        const georaster = await parseGeoraster(arrayBuffer);
+        console.log("Parsed GeoRaster:", georaster);
+
+        if (!georaster) throw new Error("GeoRaster parsing failed!");
+
+        // Ensure map is available
+        if (!map) {
+            throw new Error("Leaflet map is not initialized!");
+        }
+
+        // Remove old raster if it exists
+        if (rasterLayer && map.hasLayer(rasterLayer)) {
+            map.removeLayer(rasterLayer);
+        }
+
+        // ✅ Get raster values from the first band
+        const rasterValues = georaster.values[0]; // First band
+        const flatValues = rasterValues.flat().filter(v => v !== georaster.noDataValue); // Remove NoData values
+        const minVal = Math.min(...flatValues); // Min value
+        const maxVal = Math.max(...flatValues); // Max value
+
+        console.log(`Raster Min: ${minVal}, Max: ${maxVal}`);
+
+        // ✅ Fix: Adjust if all values are similar
+        if (minVal === maxVal) {
+            console.warn("Warning: Raster has uniform values, colors may not work.");
+            minVal -= 1;
+            maxVal += 1;
+        }
+
+        // 🔥 New Color Function: Blue → Green → Yellow → Red
+        function getColorFromValue(value) {
+            if (value === georaster.noDataValue) return "transparent";
+
+            const normalized = (value - minVal) / (maxVal - minVal); // Normalize (0 to 1)
+
+            const r = Math.round(255 * normalized);
+            const g = Math.round(255 * (1 - normalized));
+            const b = Math.round(255 * (1 - normalized) * 0.5); // Keep some blue tone
+
+            return `rgb(${r},${g},${b})`;
+        }
+
+        // ✅ Apply color function to raster layer
+        rasterLayer = new GeoRasterLayer({
+            georaster: georaster,
+            opacity: 0.7,
+            resolution: 256,
+            pixelValueToColorFn: getColorFromValue, // Apply color mapping
+        });
+
+        console.log("Raster Layer created:", rasterLayer);
+
+        if (rasterLayer) {
+            map.addLayer(rasterLayer);
+            map.fitBounds(rasterLayer.getBounds());
+        } else {
+            throw new Error("Raster layer creation failed.");
+        }
+
+    } catch (error) {
+        console.error("Error fetching raster:", error);
+        alert("Failed to load raster data: " + error.message);
+    }
+}
+
+
+
+
+document.getElementById("displayRasterBtn").addEventListener("click", function () {
+    const year = document.getElementById("yearSelect").value;
+    const monsoon = document.getElementById("monsoonSelect").value;
+    if (!year || !monsoon) {
+        alert("Please select both year and monsoon season.");
+        return;
+    }
+    fetchAndDisplayRaster(year, monsoon);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+//   // buttons and functionalities------------------------------------------------------------------------------  
+    document.getElementById("gwSelect").addEventListener("change", function() {
+    let value = this.value;
+    document.getElementById("existingOptions").style.display = (value === "existing") ? "block" : "none";
+    document.getElementById("newWellInput").style.display = (value === "new") ? "block" : "none";
+    });
+
+document.getElementById("yearSelect").addEventListener("click", function() {
+    if (this.value) {
+        document.getElementById("displayRasterBtn").style.display = "block";
+    }
+});
+
+document.getElementById("displayRasterBtn").addEventListener("click", function() {
+    document.getElementById("checkboxContainer").style.display = "block";
+});
+
+document.getElementById("uploadBtn").addEventListener("click", function() {
+    let fileInput = document.getElementById("fileInput");
+    if (!fileInput.files.length) {
+        alert("Please select a file.");
+        return;
+    }
+    let fileName = fileInput.files[0].name;
+    if (!fileName.endsWith(".csv")) {
+        document.getElementById("fileError").style.display = "block";
+    } else {
+        document.getElementById("fileError").style.display = "none";
+        alert("File uploaded successfully.");
+        // Code to process file upload and add well to the database
+    }
+});
+// end buttons and functionalities-----------------------------------------------------------------------------------
+  </script>
+
+  
+
+</body>
+
+</html>

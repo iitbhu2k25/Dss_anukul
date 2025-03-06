@@ -196,14 +196,23 @@ document.addEventListener('DOMContentLoaded', () => {
       let targetYear = parseInt(targetYearInput.value, 10);
       let start = parseInt(targetYearRangeStart.value, 10);
       let end = parseInt(targetYearRangeEnd.value, 10);
+      const targetYearError = document.getElementById('target-year-error');
+      const targetYearRangeError = document.getElementById('target-year-range-error');
+
+
+      // Clear previous error messages at the start
+      if (targetYearError) targetYearError.textContent = '';
+      if (targetYearRangeError) targetYearRangeError.textContent = '';
   
       if (!isNaN(targetYear) && (targetYear < 2012 || targetYear > 2100)) {
           alert("Please enter a valid year between 2012 and 2100.");
+          targetYearError.textContent = "Year must be between 2012 and 2100.";
           return;
       }
   
       if (!isNaN(start) && !isNaN(end) && (end < start || start < 2012 || start > 2100 || end < 2012 || end > 2100)) {
         alert("End year must be greater than the start year and both years must be between 2012 and 2100.");
+        targetYearRangeError.textContent = "Start year must be before end year, and both must be between 2012 and 2100.";
         return;
       }
     
@@ -235,9 +244,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
     });
+    
 
+    let alertShown = false;
     // Function to handle projection logic
     function handleProjection(projectionMethod) {
+      if(alertShown) return true;
       const state = document.getElementById('state').value;
       const district = document.getElementById('district').value;
       const subdistrict = document.getElementById('subdistrict').value;
@@ -265,9 +277,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Validate inputs
       if (!state || selectedVillages.length === 0 || !projectionMethod ||
         (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
+        alertShown =true; // prevent further alerts
         alert('Please fill out all required fields.');
+        setTimeout(() => {alertShown=false},1000)  //reset alert flag after 1 second 
         return;
       }
+
+      alertShown  =false; //Reset after validation
 
 
       const requestData = {
