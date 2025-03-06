@@ -1,6 +1,14 @@
 let code_to_villagename = {};
 let villagePopulations = {};
 let chartInstances = {};
+const sampleData = {
+  "incremental-growth": {
+    "162853": {2011: 981, 2020: 1112, 2021: 1128, 2022: 1144, 2023: 1160, 2024: 1177, 2025: 1194},
+    "162856": {2011: 30, 2020: 34, 2021: 34, 2022: 34, 2023: 35, 2024: 36, 2025: 36},
+    "162908": {2011: 588, 2020: 666, 2021: 676, 2022: 685, 2023: 695, 2024: 705, 2025: 715}
+  }
+  // Additional methods could be added here when you have more data
+};
 document.addEventListener('DOMContentLoaded', () => {
     // Fetch states on page load
     fetch('/population/get-states/')
@@ -171,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetYearRangeStart = document.getElementById('target-year-range-start');
     const targetYearRangeEnd = document.getElementById('target-year-range-end');
     
+    
     const calculateBtn  = document.getElementById('clc')
    
     // Handle year selection options
@@ -267,9 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
         for(m of selectedMethods){
           handleProjection(m)
         }
-        
-
-
          
 
       }
@@ -354,73 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
           if (data.success && data.result) {
             console.log("fetched result be ", data.result);
-           
-            
-            // populateTable(data.result, projectionMethod);
+            displayResults(data.result)
 
-            //Render graphs for each method
-            // let containKeyGrowthPercent = false;
-            //Render graphs for each method
-            // Object.keys(data.result).forEach(method => {
-            //   const methodData = data.result[method];
-            //   console.log("Method data, ",methodData);
-              
-            //   Object.keys(methodData).forEach(key => {
-            //     if ("Growth Percent" in methodData[key]) {
-            //         containKeyGrowthPercent=true
-            //     } 
-            // });
-              
-            
-            //   Object.values(methodData).forEach(yearData => {
-            //     if (yearData) {
-            //       delete yearData["Growth Percent"]; // If present, delete
-            //     }
-            //   });
-            
-            //   console.log("method ", method);
-            //   console.log("methodData ", methodData);
-            
-            //   const canvasId = `graph-${method}`;
-            //   console.log("Canvas Id ", canvasId);
-            
-            //   const labels = Object.keys(methodData[Object.keys(methodData)[0]]); // Years
-            //   console.log("Object.keys(methodData)[0] ", Object.keys(methodData)[0]);
-            //   console.log("methodData[Object.keys(methodData)[0]]", methodData[Object.keys(methodData)[0]]);
-            
-            //   const datasets = Object.entries(methodData).map(([village, yearData]) => {
-            //     console.log(" Object.values(yearData) ", Object.values(yearData));
-            //     return {
-            //       label: code_to_villagename[village],
-            //       data: Object.values(yearData),
-            //       borderColor: getRandomColor(),
-            //       borderWidth: 2,
-            //       fill: false,
-            //     };
-            //   });
-            
-            //   console.log("datasets original", datasets);
-            //   console.log("labels original ", labels);
-            
-            //   if(!containKeyGrowthPercent){
-                
-            //     const datasets2 = datasets.map(dataset => ({
-            //       ...dataset, 
-            //       data: dataset.data.slice(1) // Remove the 0th index value
-            //      }));
-            //      labels.shift()
 
-            //     console.log("datasets2", datasets2);
-            //     console.log("labels for range years", labels);
-                
-            //     renderGraph(canvasId, datasets2, labels);
-            //   }
-            //   else{
-            //     renderGraphforSingleYear(canvasId,datasets,labels)
-            //   }
-            // });
-            
-
+          
           } else {
             alert('Error: ' + (data.error || 'No data returned'));
           }
@@ -429,173 +372,112 @@ document.addEventListener('DOMContentLoaded', () => {
           console.error('Fetch error:', error);
           alert('An unexpected error occurred.');
         });
+       
     }
 
-    // Function to populate table
-function populateTable(result, projectionMethod) {
-  console.log("Result of populateTable ", result);
-  
-  const containerId = `dynamic-tables-${projectionMethod}`;
-  const dynamicTableContainer = document.getElementById(containerId);
+    function formatMethodName(method) {
+      return method.split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ') + ' Method';
+    }
 
-  // Clear previous tables in the selected container
-  dynamicTableContainer.innerHTML = '';
+    const resultsSection = document.getElementById('results-section');
+    const resultsContainer = document.getElementById('results-container');
 
-  const methodData = result[projectionMethod];
-  if (!methodData || Object.keys(methodData).length === 0) {
-      console.error("No data available for projection method:", projectionMethod);
-      const errorMessage = document.createElement('p');
-      errorMessage.textContent = `No data available for ${projectionMethod.replace(/-/g, ' ').toUpperCase()}`;
-      dynamicTableContainer.appendChild(errorMessage);
-      return;
-  }
-
-  const tableContainer = document.createElement('div');
-  tableContainer.classList.add('mb-5');
-
-  const title = document.createElement('h4');
-  title.textContent = projectionMethod.replace(/-/g, ' ').toUpperCase();
-  tableContainer.appendChild(title);
-
-  const tableWrapper = document.createElement('div');
-  tableWrapper.style.overflowX = 'auto'; // Allow horizontal scrolling
-  tableWrapper.style.maxWidth = '100%'; // Prevent from exceeding container width
-
-  const table = document.createElement('table');
-  table.classList.add('table', 'table-bordered', 'table-striped');
-  table.id = `table-${projectionMethod}`; // Unique ID for the table
-
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  headerRow.innerHTML = '<th>Village/Town Name</th>';
-
-  const firstVillageData = Object.values(methodData)[0];
-  if (!firstVillageData) {
-      console.error("First village data is undefined or null.");
-      return;
-  }
-
-  const firstVillageYears = Object.keys(firstVillageData);
-  firstVillageYears.forEach(year => {
-      const th = document.createElement('th');
-      th.textContent = year;
-      headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  let totalPopulation = {}; // Store total for each year
-  
-  console.log("methodDatapopTable", methodData);
-
-  
-  
-  for (const villageCode in methodData) {
-      console.log("villagecodee ",villageCode);
+    function displayResults(data) {
       
-      const row = document.createElement('tr');
-      const villageCell = document.createElement('td');
-      villageCell.textContent = code_to_villagename[villageCode] || "END";
-      row.appendChild(villageCell);
-
-      const yearData = methodData[villageCode];
-      firstVillageYears.forEach(year => {
-          const yearCell = document.createElement('td');
-          yearCell.textContent = yearData[year] || '-';
-
-          let population = parseInt(yearData[year], 10) || 0;
-          totalPopulation[year] = (totalPopulation[year] || 0) + population;
-
-          row.appendChild(yearCell);
-      });
-
-      tbody.appendChild(row);
-  }
-
-  // Add the total row at the end
-  const totalRow = document.createElement('tr');
-  totalRow.style.fontWeight = "bold";
-  totalRow.style.backgroundColor = "#f8f9fa";
-
-  const totalLabelCell = document.createElement('td');
-  totalLabelCell.textContent = "Total Population";
-  totalRow.appendChild(totalLabelCell);
-  
-  let prev2TotalPop = 0;
-
-  firstVillageYears.forEach(year => {
-    console.log("yearissss",year);
-    const totalCell = document.createElement('td');
-      if(year!=='Growth Percent'){
-        totalCell.textContent = totalPopulation[year] || '-';
+      
+      console.log(" i am displayresults");
+      console.log(data);
+      
+      
+      resultsContainer.innerHTML = '';
+      
+      // Process and display each prediction method
+      for (const [method, villageData] of Object.entries(data)) {
+        // Create method header
+        const methodHeader = document.createElement('h5');
+        methodHeader.textContent = formatMethodName(method);
+        methodHeader.className = 'mt-4 mb-3';
+        resultsContainer.appendChild(methodHeader);
+        
+        // Create table
+        const table = document.createElement('table');
+        table.className = 'table table-bordered table-hover';
+        
+        // Create table header
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        headerRow.className = 'bg-light';
+        
+        // Add Village/Town ID column
+        const idHeader = document.createElement('th');
+        idHeader.textContent = 'Village/Town ID';
+        headerRow.appendChild(idHeader);
+        
+        // Get all years from the data
+        const years = new Set();
+        Object.values(villageData).forEach(yearData => {
+          Object.keys(yearData).forEach(year => years.add(parseInt(year)));
+        });
+        
+        // Convert to array and sort
+        const sortedYears = Array.from(years).sort((a, b) => a - b);
+        
+        // Add year columns
+        sortedYears.forEach(year => {
+          const yearHeader = document.createElement('th');
+          yearHeader.textContent = year;
+          headerRow.appendChild(yearHeader);
+        });
+        
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+        
+        // Create table body
+        const tbody = document.createElement('tbody');
+        
+        // Add rows for each village/town
+        for (const [villageId, yearData] of Object.entries(villageData)) {
+          const row = document.createElement('tr');
+          
+          // Add village/town ID cell
+          const idCell = document.createElement('td');
+          idCell.textContent = villageId;
+          idCell.className = 'fw-bold';
+          row.appendChild(idCell);
+          
+          // Add population data for each year
+          sortedYears.forEach(year => {
+            const dataCell = document.createElement('td');
+            const population = yearData[year];
+            
+            if (population !== undefined) {
+              dataCell.textContent = population.toLocaleString();
+              
+              // Highlight cells for forecasted years (beyond 2011)
+              if (year > 2011) {
+                dataCell.className = 'bg-light-blue';
+              }
+            } else {
+              dataCell.textContent = 'N/A';
+              dataCell.className = 'text-muted';
+            }
+            
+            row.appendChild(dataCell);
+          });
+          
+          tbody.appendChild(row);
+        }
+        
+        table.appendChild(tbody);
+        resultsContainer.appendChild(table);
       }
-      if(year!=='Growth Percent'){
-        totalRow.appendChild(totalCell);
-      }
-      else if(year === 'Growth Percent'){
-        prev2TotalPop=((totalPopulation[firstVillageYears[1]] - totalPopulation[firstVillageYears[0]] ) / totalPopulation[firstVillageYears[0]] ) * 100
-        prev2TotalPop = prev2TotalPop.toFixed(2); //to 2 decimal places
-        totalCell.textContent = prev2TotalPop>0 ? prev2TotalPop : "NA"
-        totalRow.appendChild(totalCell);
-      }
-  });
-
-  tbody.appendChild(totalRow);
-  table.appendChild(tbody);
-  tableWrapper.appendChild(table);
-  tableContainer.appendChild(tableWrapper);
-
-
-  // Create Export CSV Button
-const exportButton = document.createElement('button');
-exportButton.textContent = "Export CSV";
-exportButton.classList.add('btn', 'btn-success', 'btn-sm', 'mt-2');
-exportButton.addEventListener("click", function (event) {
-    event.preventDefault(); // Prevent page refresh
-    exportTableToCSV(table.id, `${projectionMethod}.csv`);
+    
+    }
 });
 
 
-  tableContainer.appendChild(exportButton);
-  dynamicTableContainer.appendChild(tableContainer);
-}
-
-// Function to export table to CSV
-function exportTableToCSV(tableId, filename) {
-  const table = document.getElementById(tableId);
-  if (!table) {
-      console.error("Table not found!");
-      return;
-  }
-
-  let csv = [];
-  const rows = table.querySelectorAll("tr");
-
-  rows.forEach(row => {
-      let cols = row.querySelectorAll("th, td");
-      let rowData = [];
-
-      cols.forEach(col => {
-          rowData.push(col.innerText.replace(/,/g, "")); // Remove commas from cell data
-      });
-
-      csv.push(rowData.join(",")); // Join columns with a comma
-  });
-
-  // Create a CSV file and trigger download
-  let csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
-  let tempLink = document.createElement("a");
-  tempLink.download = filename;
-  tempLink.href = window.URL.createObjectURL(csvFile);
-  tempLink.style.display = "none";
-  document.body.appendChild(tempLink);
-  tempLink.click();
-  document.body.removeChild(tempLink);
-}
-
-    
-  });
 
 
 
