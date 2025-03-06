@@ -164,19 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
 //   ----------------------calculate and show dynamic table----------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-    const projectionDropdown = document.getElementById('projection-method');
-    const projectionItems = document.querySelectorAll('.projection-item');
+ 
     const singleYearOption = document.getElementById('single-year-option');
     const rangeYearOption = document.getElementById('range-year-option');
     const targetYearInput = document.getElementById('target-year');
     const targetYearRangeStart = document.getElementById('target-year-range-start');
     const targetYearRangeEnd = document.getElementById('target-year-range-end');
     
-    const calculateBtn  =document.getElementById('clc')
+    const calculateBtn  = document.getElementById('clc')
    
-   
-    
-
     // Handle year selection options
     singleYearOption.addEventListener('change', () => {
       targetYearInput.disabled = false;
@@ -192,57 +188,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event listener for projection method dropdown
     calculateBtn.addEventListener('click', function (e) {
+      console.log("clclt button is clicked");
+      
       e.preventDefault();
-      let targetYear = parseInt(targetYearInput.value, 10);
-      let start = parseInt(targetYearRangeStart.value, 10);
-      let end = parseInt(targetYearRangeEnd.value, 10);
-      const targetYearError = document.getElementById('target-year-error');
-      const targetYearRangeError = document.getElementById('target-year-range-error');
+      let targetYear = targetYearInput.value.trim();  // Get input value
+        let start = targetYearRangeStart.value.trim();
+        let end = targetYearRangeEnd.value.trim();
+        const targetYearError = document.getElementById('target-year-error');
+        const targetYearRangeError = document.getElementById('target-year-range-error');
 
+        // Clear previous error messages at the start
+        targetYearError.textContent = '';
+        targetYearRangeError.textContent = '';
 
-      // Clear previous error messages at the start
-      if (targetYearError) targetYearError.textContent = '';
-      if (targetYearRangeError) targetYearRangeError.textContent = '';
-  
-      if (!isNaN(targetYear) && (targetYear < 2012 || targetYear > 2100)) {
-          alert("Please enter a valid year between 2012 and 2100.");
-          targetYearError.textContent = "Year must be between 2012 and 2100.";
-          return;
-      }
-  
-      if (!isNaN(start) && !isNaN(end) && (end < start || start < 2012 || start > 2100 || end < 2012 || end > 2100)) {
-        alert("End year must be greater than the start year and both years must be between 2012 and 2100.");
-        targetYearRangeError.textContent = "Start year must be before end year, and both must be between 2012 and 2100.";
-        return;
-      }
-    
-      const selectedValue = projectionDropdown.value;
+        // Validate target year (for single year selection)
+        if (singleYearOption.checked) {
+            if (targetYear === '') {
+                alert("Please enter a target year.");
+                targetYearError.textContent = "Target year is required.";
+                return;
+            }
 
-      projectionItems.forEach(item => {
-        const container = item.querySelector(`#dynamic-tables-${selectedValue}`);
-        if (selectedValue === 'all') {
-          projectionItems.forEach(item => {
-            item.style.display = 'block'; // Show all items
-            const methodClass = item.classList[1]; // Get the class corresponding to the method
-            const method = methodClass; // Use the class name directly as it matches the dropdown value
-            handleProjection(method); // Call handleProjection for each method
-          });
-          
-          
-        } else if (item.classList.contains(selectedValue)) {
-          item.style.display = 'block';
-          if (container) container.innerHTML = ''; // Clear previous tables for this method
-        } else {
-          item.style.display = 'none';
+            let year = parseInt(targetYear, 10);
+            if (isNaN(year) || year < 2012 || year > 2100) {
+                alert("Please enter a valid year between 2012 and 2100.");
+                targetYearError.textContent = "Year must be between 2012 and 2100.";
+                return;
+            }
+        }
+
+        // Validate year range (for range selection)
+        if (rangeYearOption.checked) {
+            if (start === '' || end === '') {
+                alert("Please enter both start and end years.");
+                targetYearRangeError.textContent = "Both start and end years are required.";
+                return;
+            }
+
+            let startYear = parseInt(start, 10);
+            let endYear = parseInt(end, 10);
+
+            if (isNaN(startYear) || isNaN(endYear) || startYear < 2012 || endYear > 2100 || endYear <= startYear) {
+                alert("End year must be greater than the start year and both must be between 2012 and 2100.");
+                targetYearRangeError.textContent = "Start year must be before end year, and both must be valid.";
+                return;
+            }
+        }
+      
+      const state = document.getElementById('state').value;
+      const district = document.getElementById('district').value;
+      const subdistrict = document.getElementById('subdistrict').value;
+        
+      let timeSeries = document.getElementById('time-series');
+      let demographic = document.getElementById('demographic-based');
+      let cohort = document.getElementById('cohort-component');
+      let scenario = document.getElementById('scenario-based');
+      
+
+      if(timeSeries.checked){
+         // Collect checked prediction methods
+         let selectedMethods = [];
+         let methods = [
+             "arithmetic-increase",
+             "geometric-increase",
+             "logistic-growth",
+             "exponential-growth",
+             "incremental-growth"
+         ];
+ 
+         methods.forEach(method => {
+             let checkbox = document.getElementById(method);
+             if (checkbox && checkbox.checked) {
+                 selectedMethods.push(checkbox.value);
+             }
+         });
+
+        //  console.log("checked method is ", selectedMethods);
+        for(m of selectedMethods){
+          handleProjection(m)
         }
         
-       
-      });
 
-      if (selectedValue !== 'all') {
-        handleProjection(selectedValue);
+
+         
+
+      }
+      else if(demographic.checked){
+
+      }
+      else if(cohort.checked){
+         alert("Working, not completed yet")
+         return;
+      }
+      else if(scenario.checked){
+        alert("Working, not completed yet")
+        return;
+
       }
       
+  
     });
     
 
@@ -309,71 +353,72 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => response.json())
         .then(data => {
           if (data.success && data.result) {
-            console.log("Data Result ", data.result);
+            console.log("fetched result be ", data.result);
+           
             
-            populateTable(data.result, projectionMethod);
+            // populateTable(data.result, projectionMethod);
 
             //Render graphs for each method
-            let containKeyGrowthPercent = false;
+            // let containKeyGrowthPercent = false;
             //Render graphs for each method
-            Object.keys(data.result).forEach(method => {
-              const methodData = data.result[method];
-              console.log("Method data, ",methodData);
+            // Object.keys(data.result).forEach(method => {
+            //   const methodData = data.result[method];
+            //   console.log("Method data, ",methodData);
               
-              Object.keys(methodData).forEach(key => {
-                if ("Growth Percent" in methodData[key]) {
-                    containKeyGrowthPercent=true
-                } 
-            });
+            //   Object.keys(methodData).forEach(key => {
+            //     if ("Growth Percent" in methodData[key]) {
+            //         containKeyGrowthPercent=true
+            //     } 
+            // });
               
             
-              Object.values(methodData).forEach(yearData => {
-                if (yearData) {
-                  delete yearData["Growth Percent"]; // If present, delete
-                }
-              });
+            //   Object.values(methodData).forEach(yearData => {
+            //     if (yearData) {
+            //       delete yearData["Growth Percent"]; // If present, delete
+            //     }
+            //   });
             
-              console.log("method ", method);
-              console.log("methodData ", methodData);
+            //   console.log("method ", method);
+            //   console.log("methodData ", methodData);
             
-              const canvasId = `graph-${method}`;
-              console.log("Canvas Id ", canvasId);
+            //   const canvasId = `graph-${method}`;
+            //   console.log("Canvas Id ", canvasId);
             
-              const labels = Object.keys(methodData[Object.keys(methodData)[0]]); // Years
-              console.log("Object.keys(methodData)[0] ", Object.keys(methodData)[0]);
-              console.log("methodData[Object.keys(methodData)[0]]", methodData[Object.keys(methodData)[0]]);
+            //   const labels = Object.keys(methodData[Object.keys(methodData)[0]]); // Years
+            //   console.log("Object.keys(methodData)[0] ", Object.keys(methodData)[0]);
+            //   console.log("methodData[Object.keys(methodData)[0]]", methodData[Object.keys(methodData)[0]]);
             
-              const datasets = Object.entries(methodData).map(([village, yearData]) => {
-                console.log(" Object.values(yearData) ", Object.values(yearData));
-                return {
-                  label: code_to_villagename[village],
-                  data: Object.values(yearData),
-                  borderColor: getRandomColor(),
-                  borderWidth: 2,
-                  fill: false,
-                };
-              });
+            //   const datasets = Object.entries(methodData).map(([village, yearData]) => {
+            //     console.log(" Object.values(yearData) ", Object.values(yearData));
+            //     return {
+            //       label: code_to_villagename[village],
+            //       data: Object.values(yearData),
+            //       borderColor: getRandomColor(),
+            //       borderWidth: 2,
+            //       fill: false,
+            //     };
+            //   });
             
-              console.log("datasets original", datasets);
-              console.log("labels original ", labels);
+            //   console.log("datasets original", datasets);
+            //   console.log("labels original ", labels);
             
-              if(!containKeyGrowthPercent){
+            //   if(!containKeyGrowthPercent){
                 
-                const datasets2 = datasets.map(dataset => ({
-                  ...dataset, 
-                  data: dataset.data.slice(1) // Remove the 0th index value
-                 }));
-                 labels.shift()
+            //     const datasets2 = datasets.map(dataset => ({
+            //       ...dataset, 
+            //       data: dataset.data.slice(1) // Remove the 0th index value
+            //      }));
+            //      labels.shift()
 
-                console.log("datasets2", datasets2);
-                console.log("labels for range years", labels);
+            //     console.log("datasets2", datasets2);
+            //     console.log("labels for range years", labels);
                 
-                renderGraph(canvasId, datasets2, labels);
-              }
-              else{
-                renderGraphforSingleYear(canvasId,datasets,labels)
-              }
-            });
+            //     renderGraph(canvasId, datasets2, labels);
+            //   }
+            //   else{
+            //     renderGraphforSingleYear(canvasId,datasets,labels)
+            //   }
+            // });
             
 
           } else {
@@ -386,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Function to populate table
     // Function to populate table
 function populateTable(result, projectionMethod) {
   console.log("Result of populateTable ", result);
@@ -896,164 +940,164 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  document.getElementById("submit-btn").addEventListener("click", function (e) {
-      e.preventDefault();
-      const state = document.getElementById('state').value;
-      const district = document.getElementById('district').value;
-      const subdistrict = document.getElementById('subdistrict').value;
+  // document.getElementById("submit-btn").addEventListener("click", function (e) {
+  //     e.preventDefault();
+  //     const state = document.getElementById('state').value;
+  //     const district = document.getElementById('district').value;
+  //     const subdistrict = document.getElementById('subdistrict').value;
       
-      const singleYearOption = document.getElementById('single-year-option');
-      const rangeYearOption = document.getElementById('range-year-option');
-      const targetYearInput = document.getElementById('target-year');
-      const targetYearRangeStart = document.getElementById('target-year-range-start');
-      const targetYearRangeEnd = document.getElementById('target-year-range-end');
+  //     const singleYearOption = document.getElementById('single-year-option');
+  //     const rangeYearOption = document.getElementById('range-year-option');
+  //     const targetYearInput = document.getElementById('target-year');
+  //     const targetYearRangeStart = document.getElementById('target-year-range-start');
+  //     const targetYearRangeEnd = document.getElementById('target-year-range-end');
 
-      const birthRate = document.getElementById("birth-rate").value;
-      const deathRate = document.getElementById("death-rate").value;
-      const emigrationRate = document.getElementById("emigration-rate").value;
-      const immigrationRate = document.getElementById("immigration-rate").value;
+  //     const birthRate = document.getElementById("birth-rate").value;
+  //     const deathRate = document.getElementById("death-rate").value;
+  //     const emigrationRate = document.getElementById("emigration-rate").value;
+  //     const immigrationRate = document.getElementById("immigration-rate").value;
 
-      const selectedVillages = Array.from(
-        document.querySelectorAll('#town-village-container input[type="checkbox"]:checked')
-      ).map(village => village.id);
+  //     const selectedVillages = Array.from(
+  //       document.querySelectorAll('#town-village-container input[type="checkbox"]:checked')
+  //     ).map(village => village.id);
 
-      const baseYear = document.getElementById('base-year').value;
+  //     const baseYear = document.getElementById('base-year').value;
 
-      const yearSelection = document.querySelector('input[name="year_selection"]:checked')?.value;
-      let targetYear = null;
-      let targetYearRange = null;
+  //     const yearSelection = document.querySelector('input[name="year_selection"]:checked')?.value;
+  //     let targetYear = null;
+  //     let targetYearRange = null;
 
 
-    // Handle year selection options
-    singleYearOption.addEventListener('change', () => {
-      targetYearInput.disabled = false;
-      targetYearRangeStart.disabled = true;
-      targetYearRangeEnd.disabled = true;
-    });
+  //   // Handle year selection options
+  //   singleYearOption.addEventListener('change', () => {
+  //     targetYearInput.disabled = false;
+  //     targetYearRangeStart.disabled = true;
+  //     targetYearRangeEnd.disabled = true;
+  //   });
 
-    rangeYearOption.addEventListener('change', () => {
-      targetYearInput.disabled = true;
-      targetYearRangeStart.disabled = false;
-      targetYearRangeEnd.disabled = false;
-    });
+  //   rangeYearOption.addEventListener('change', () => {
+  //     targetYearInput.disabled = true;
+  //     targetYearRangeStart.disabled = false;
+  //     targetYearRangeEnd.disabled = false;
+  //   });
     
 
-    if (yearSelection === 'single') {
-      targetYear = targetYearInput.value;
-    } else if (yearSelection === 'range') {
-      targetYearRange = {
-        start: targetYearRangeStart.value,
-        end: targetYearRangeEnd.value,
-      };
-    }
+  //   if (yearSelection === 'single') {
+  //     targetYear = targetYearInput.value;
+  //   } else if (yearSelection === 'range') {
+  //     targetYearRange = {
+  //       start: targetYearRangeStart.value,
+  //       end: targetYearRangeEnd.value,
+  //     };
+  //   }
 
-    console.log("Birth rate = ", birthRate);
-    console.log("Death rate = ", deathRate);
-    console.log("emigration rate = ", emigrationRate);
-    console.log("immigration rate = ", immigrationRate);
+  //   console.log("Birth rate = ", birthRate);
+  //   console.log("Death rate = ", deathRate);
+  //   console.log("emigration rate = ", emigrationRate);
+  //   console.log("immigration rate = ", immigrationRate);
     
 
-    // Validate inputs
-    if (!state || selectedVillages.length === 0 || !birthRate || !deathRate || !emigrationRate || !immigrationRate ||
-      (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
-      alert('Please fill out all required fields.');
-      return;
-    }
+  //   // Validate inputs
+  //   if (!state || selectedVillages.length === 0 || !birthRate || !deathRate || !emigrationRate || !immigrationRate ||
+  //     (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
+  //     alert('Please fill out all required fields.');
+  //     return;
+  //   }
 
     
-    const requestData = {
-      state,
-      district,
-      subdistrict,
-      villages : selectedVillages,
-      baseYear,
-      targetYear,
-      targetYearRange,
-      birthRate,
-      deathRate,
-      emigrationRate,
-      immigrationRate,
-    };
+  //   const requestData = {
+  //     state,
+  //     district,
+  //     subdistrict,
+  //     villages : selectedVillages,
+  //     baseYear,
+  //     targetYear,
+  //     targetYearRange,
+  //     birthRate,
+  //     deathRate,
+  //     emigrationRate,
+  //     immigrationRate,
+  //   };
 
     
 
-    fetch("/population/calculate-demographic/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestData),
-    })
-      .then(response => response.json())
-      .then(data => {
-        if(data.success && data.result){
-          console.log("result = ", data.result); 
-          populateTable(data.result, "demographic-attribute"); 
+  //   fetch("/population/calculate-demographic/", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify(requestData),
+  //   })
+  //     .then(response => response.json())
+  //     .then(data => {
+  //       if(data.success && data.result){
+  //         console.log("result = ", data.result); 
+  //         populateTable(data.result, "demographic-attribute"); 
 
-          let containKeyGrowthPercent = false;
-          //Render graphs for each method
-          Object.keys(data.result).forEach(method => {
-            const methodData = data.result[method];
-            console.log("Method data, ",methodData);
+  //         let containKeyGrowthPercent = false;
+  //         //Render graphs for each method
+  //         Object.keys(data.result).forEach(method => {
+  //           const methodData = data.result[method];
+  //           console.log("Method data, ",methodData);
             
-            Object.keys(methodData).forEach(key => {
-              if ("Growth Percent" in methodData[key]) {
-                  containKeyGrowthPercent=true
-              } 
-          });
+  //           Object.keys(methodData).forEach(key => {
+  //             if ("Growth Percent" in methodData[key]) {
+  //                 containKeyGrowthPercent=true
+  //             } 
+  //         });
             
           
-            Object.values(methodData).forEach(yearData => {
-              if (yearData) {
-                delete yearData["Growth Percent"]; // If present, delete
-              }
-            });
+  //           Object.values(methodData).forEach(yearData => {
+  //             if (yearData) {
+  //               delete yearData["Growth Percent"]; // If present, delete
+  //             }
+  //           });
           
-            console.log("method ", method);
-            console.log("methodData ", methodData);
+  //           console.log("method ", method);
+  //           console.log("methodData ", methodData);
           
-            const canvasId = `graph-${method}`;
-            console.log("Canvas Id ", canvasId);
+  //           const canvasId = `graph-${method}`;
+  //           console.log("Canvas Id ", canvasId);
           
-            const labels = Object.keys(methodData[Object.keys(methodData)[0]]); // Years
-            console.log("Object.keys(methodData)[0] ", Object.keys(methodData)[0]);
-            console.log("methodData[Object.keys(methodData)[0]]", methodData[Object.keys(methodData)[0]]);
+  //           const labels = Object.keys(methodData[Object.keys(methodData)[0]]); // Years
+  //           console.log("Object.keys(methodData)[0] ", Object.keys(methodData)[0]);
+  //           console.log("methodData[Object.keys(methodData)[0]]", methodData[Object.keys(methodData)[0]]);
           
-            const datasets = Object.entries(methodData).map(([village, yearData]) => {
-              console.log(" Object.values(yearData) ", Object.values(yearData));
-              return {
-                label: code_to_villagename[village],
-                data: Object.values(yearData),
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                fill: false,
-              };
-            });
+  //           const datasets = Object.entries(methodData).map(([village, yearData]) => {
+  //             console.log(" Object.values(yearData) ", Object.values(yearData));
+  //             return {
+  //               label: code_to_villagename[village],
+  //               data: Object.values(yearData),
+  //               borderColor: getRandomColor(),
+  //               borderWidth: 2,
+  //               fill: false,
+  //             };
+  //           });
           
-            console.log("datasets original", datasets);
-            console.log("labels original ", labels);
+  //           console.log("datasets original", datasets);
+  //           console.log("labels original ", labels);
           
-            if(!containKeyGrowthPercent){
+  //           if(!containKeyGrowthPercent){
               
-              const datasets2 = datasets.map(dataset => ({
-                ...dataset, 
-                data: dataset.data.slice(1) // Remove the 0th index value
-               }));
-               labels.shift()
+  //             const datasets2 = datasets.map(dataset => ({
+  //               ...dataset, 
+  //               data: dataset.data.slice(1) // Remove the 0th index value
+  //              }));
+  //              labels.shift()
 
-              console.log("datasets2", datasets2);
-              console.log("labels for range years", labels);
+  //             console.log("datasets2", datasets2);
+  //             console.log("labels for range years", labels);
               
-              renderGraph(canvasId, datasets2, labels);
-            }
-            else{
-              renderGraphforSingleYear(canvasId,datasets,labels)
-            }
-          });
-        }
+  //             renderGraph(canvasId, datasets2, labels);
+  //           }
+  //           else{
+  //             renderGraphforSingleYear(canvasId,datasets,labels)
+  //           }
+  //         });
+  //       }
         
-      })
-      .catch(error => console.error("Error:", error));
+  //     })
+  //     .catch(error => console.error("Error:", error));
       
-  });
+  // });
 
   function populateTable(result, projectionMethod) {
     const containerId = `dynamic-tables-${projectionMethod}`;
