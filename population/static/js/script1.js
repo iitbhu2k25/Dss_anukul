@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (subdistrictCode) {
         fetch(`/population/get-villages/${stateCode}/${districtCode}/${subdistrictCode}/`)
           .then(response => response.json())
-          .then(villages => populateTownVillage(villages, 'village_code', 'region_name', 'population_2011'))
+          .then(villages => populateTownVillage(villages,'subdistrict_code', 'village_code', 'region_name', 'population_2011'))
           .catch(error => console.error('Error fetching villages:', error));
           
       }
@@ -72,36 +72,66 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // Populate town/village container
-  function populateTownVillage(data, valueKey, textKey, populationKey) {
-    // console.log("Data hai ", data);
-   
-    
+  function populateTownVillage(data, sdcode, vcode, rcode, pcode) {
     const container = document.getElementById('town-village-container');
     container.innerHTML = ''; // Clear previous checkboxes
-  
+    let totalPop = 0;
+    
     data.forEach(item => {
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = item[valueKey];
-      checkbox.id = `village-${item[valueKey]}`;
-      checkbox.className = 'village-checkbox';
-      villagePopulations[item[valueKey]] = item[populationKey];
-      code_to_villagename[item[valueKey]] = item[textKey];
+        console.log("item hai g ", item);
   
-      const label = document.createElement('label');
-      label.htmlFor = checkbox.id;
-      label.textContent = item[textKey];
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = item[vcode];
+        checkbox.id = `village-${item[vcode]}`;
+        checkbox.className = 'village-checkbox';
+        villagePopulations[item[vcode]] = item[pcode];
+        code_to_villagename[item[vcode]] = item[rcode];
   
-      const div = document.createElement('div');
-      div.appendChild(checkbox);
-      div.appendChild(label);
+        if (item[sdcode] > 0 && item[vcode] === 0) {
+            totalPop += item[pcode];
+        }
   
-      container.appendChild(div);
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = item[rcode];
   
-      // Add event listener to update selected villages
-      checkbox.addEventListener('change', updateSelectedVillages);
+        const div = document.createElement('div');
+        div.appendChild(checkbox);
+        div.appendChild(label);
+  
+        container.appendChild(div);
+  
+        // Add event listener to update selected villages and handle "All" selection
+        checkbox.addEventListener('change', function () {
+            handleAllSelection();
+            updateSelectedVillages();
+        });
     });
+  
+    if (totalPop > 0) {
+        villagePopulations[0] = totalPop;
+    }
+  
+    console.log("Total popu ", totalPop);
+    console.log("villagePopulations[0] ", villagePopulations[0]);
   }
+  // Function to handle "All" selection behavior
+function handleAllSelection() {
+  const checkboxes = document.querySelectorAll('.village-checkbox');
+  const allCheckbox = Array.from(checkboxes).find(cb => cb.labels.length > 0 && cb.labels[0].textContent.trim() === "All");
+
+  if (allCheckbox && allCheckbox.checked) {
+      checkboxes.forEach(cb => {
+          if (cb !== allCheckbox) {
+              cb.checked = false;
+              cb.disabled = true;
+          }
+      });
+  } else {
+      checkboxes.forEach(cb => cb.disabled = false);
+  }
+}
   
   // Reset town/village container
   function resetTownVillage() {
@@ -116,40 +146,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-  // Update selected villages display
-  function updateSelectedVillages() {
-    const checkboxes = document.querySelectorAll('.village-checkbox:checked');
-    const selectedContainer = document.getElementById('selected-villages');
-    const totalPopulationContainer = document.getElementById('total-population');
-    let totalPopulation = 0;
+   // Update selected villages display
+function updateSelectedVillages() {
+  const checkboxes = document.querySelectorAll('.village-checkbox:checked');
+  const selectedContainer = document.getElementById('selected-villages');
+  const totalPopulationContainer = document.getElementById('total-population');
+  let totalPopulation = 0;
 
-    if (checkboxes.length === 0) {
+  if (checkboxes.length === 0) {
       selectedContainer.innerHTML = '<span>No selections made</span>';
       totalPopulationContainer.innerHTML = '';
       return;
-    }
+  }
 
-    selectedContainer.innerHTML = '';
-    checkboxes.forEach(checkbox => {
-      console.log("Checkbox: ", checkbox); 
-      
-      
+  selectedContainer.innerHTML = '';
+  checkboxes.forEach(checkbox => {
+      console.log("Checkbox: ", checkbox);
+
       const label = document.querySelector(`label[for="${checkbox.id}"]`);
-      // console.log("Label: ", label);
-      
+      console.log("Label g: ", label);
+
       const div = document.createElement('div');
       const villageId = checkbox.id.split("-")[1]; // Get the village ID from the checkbox ID
-      
+
       // Get the population for the village from the villagePopulations object
       const population = villagePopulations[villageId] || 0; // Default to 0 if not found
       totalPopulation += population; // Add to total population
 
-      // Add the village name and population next to each other
-      div.textContent = `${label.textContent} (Population of 2011: ${population})`;
-      selectedContainer.appendChild(div);
-    });
-    totalPopulationContainer.textContent = `Total Population: ${totalPopulation}`;
-    
+      // Handling the "All" name
+      const subdistrict = document.getElementById("subdistrict");
+      const selectedSubdistrictName = subdistrict.options[subdistrict.selectedIndex]?.text || "Unknown Subdistrict";
+
+      const district = document.getElementById("district");
+      const selectedDistrictName = district.options[district.selectedIndex]?.text || "Unknown District";
+
+      console.log("Selected Subdistrict:", selectedSubdistrictName);
+      console.log("Selected district:", selectedDistrictName);
+
+      if (label && label.textContent.trim() === "All") {
+          // If "All" is selected, use subdistrict name
+          div.textContent = `${selectedSubdistrictName} (Population of 2011: ${population})`;
+          selectedContainer.appendChild(div);
+      } else if (label && label.textContent.includes("Subdistrict")) {
+          // If a subdistrict is selected, use its name
+          div.textContent = `${selectedDistrictName} (Population of 2011: ${population})`;
+          selectedContainer.appendChild(div);
+      } else {
+          // Add the village name and population next to each other
+          div.textContent = `${label?.textContent || "Unknown"} (Population of 2011: ${population})`;
+          selectedContainer.appendChild(div);
+      }
+  });
+
+  totalPopulationContainer.textContent = `Total Population: ${totalPopulation}`;
 }
 
   
@@ -238,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
           let methods = [
               "arithmetic-increase",
               "geometric-increase",
-              "logistic-growth",
+          
               "exponential-growth",
               "incremental-growth"
           ];
