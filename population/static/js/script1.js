@@ -172,309 +172,414 @@ document.addEventListener('DOMContentLoaded', () => {
 //   ----------------------calculate and show dynamic table----------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
- 
-    const singleYearOption = document.getElementById('single-year-option');
-    const rangeYearOption = document.getElementById('range-year-option');
-    const targetYearInput = document.getElementById('target-year');
-    const targetYearRangeStart = document.getElementById('target-year-range-start');
-    const targetYearRangeEnd = document.getElementById('target-year-range-end');
-    
-    
-    const calculateBtn  = document.getElementById('clc')
-   
-    // Handle year selection options
-    singleYearOption.addEventListener('change', () => {
+  const singleYearOption = document.getElementById('single-year-option');
+  const rangeYearOption = document.getElementById('range-year-option');
+  const targetYearInput = document.getElementById('target-year');
+  const targetYearRangeStart = document.getElementById('target-year-range-start');
+  const targetYearRangeEnd = document.getElementById('target-year-range-end');
+  const calculateBtn = document.getElementById('clc');
+
+  const toggleButton = document.getElementById('toggle-view');
+  const resultsContainer = document.getElementById('results-container');
+  const chartContainer = document.getElementById('chart-container');
+  let summedChart = null;  // Store chart instance
+
+  // Handle year selection options
+  singleYearOption.addEventListener('change', () => {
       targetYearInput.disabled = false;
       targetYearRangeStart.disabled = true;
       targetYearRangeEnd.disabled = true;
-    });
+  });
 
-    rangeYearOption.addEventListener('change', () => {
+  rangeYearOption.addEventListener('change', () => {
       targetYearInput.disabled = true;
       targetYearRangeStart.disabled = false;
       targetYearRangeEnd.disabled = false;
-    });
+  });
 
-    // Event listener for projection method dropdown
-    calculateBtn.addEventListener('click', function (e) {
-      console.log("clclt button is clicked");
-      
+  calculateBtn.addEventListener('click', async function (e) {
+      console.log("Calculate button clicked");
       e.preventDefault();
-      let targetYear = targetYearInput.value.trim();  // Get input value
-        let start = targetYearRangeStart.value.trim();
-        let end = targetYearRangeEnd.value.trim();
-        const targetYearError = document.getElementById('target-year-error');
-        const targetYearRangeError = document.getElementById('target-year-range-error');
 
-        // Clear previous error messages at the start
-        targetYearError.textContent = '';
-        targetYearRangeError.textContent = '';
+      let targetYear = targetYearInput.value.trim();
+      let start = targetYearRangeStart.value.trim();
+      let end = targetYearRangeEnd.value.trim();
+      const targetYearError = document.getElementById('target-year-error');
+      const targetYearRangeError = document.getElementById('target-year-range-error');
 
-        // Validate target year (for single year selection)
-        if (singleYearOption.checked) {
-            if (targetYear === '') {
-                alert("Please enter a target year.");
-                targetYearError.textContent = "Target year is required.";
-                return;
-            }
+      // Clear previous error messages
+      targetYearError.textContent = '';
+      targetYearRangeError.textContent = '';
 
-            let year = parseInt(targetYear, 10);
-            if (isNaN(year) || year < 2012 || year > 2100) {
-                alert("Please enter a valid year between 2012 and 2100.");
-                targetYearError.textContent = "Year must be between 2012 and 2100.";
-                return;
-            }
-        }
+      // Validate target year (single selection)
+      if (singleYearOption.checked) {
+          if (!targetYear || isNaN(targetYear) || targetYear < 2012 || targetYear > 2100) {
+              alert("Please enter a valid year between 2012 and 2100.");
+              targetYearError.textContent = "Year must be between 2012 and 2100.";
+              return;
+          }
+      }
 
-        // Validate year range (for range selection)
-        if (rangeYearOption.checked) {
-            if (start === '' || end === '') {
-                alert("Please enter both start and end years.");
-                targetYearRangeError.textContent = "Both start and end years are required.";
-                return;
-            }
+      // Validate year range (range selection)
+      if (rangeYearOption.checked) {
+          if (!start || !end || isNaN(start) || isNaN(end) || start < 2012 || end > 2100 || end <= start) {
+              alert("End year must be greater than the start year and both must be between 2012 and 2100.");
+              targetYearRangeError.textContent = "Invalid range.";
+              return;
+          }
+      }
 
-            let startYear = parseInt(start, 10);
-            let endYear = parseInt(end, 10);
-
-            if (isNaN(startYear) || isNaN(endYear) || startYear < 2012 || endYear > 2100 || endYear <= startYear) {
-                alert("End year must be greater than the start year and both must be between 2012 and 2100.");
-                targetYearRangeError.textContent = "Start year must be before end year, and both must be valid.";
-                return;
-            }
-        }
-      
       const state = document.getElementById('state').value;
       const district = document.getElementById('district').value;
       const subdistrict = document.getElementById('subdistrict').value;
-        
+
       let timeSeries = document.getElementById('time-series');
       let demographic = document.getElementById('demographic-based');
       let cohort = document.getElementById('cohort-component');
       let scenario = document.getElementById('scenario-based');
-      
 
-      if(timeSeries.checked){
-         // Collect checked prediction methods
-         let selectedMethods = [];
-         let methods = [
-             "arithmetic-increase",
-             "geometric-increase",
-             "logistic-growth",
-             "exponential-growth",
-             "incremental-growth"
-         ];
- 
-         methods.forEach(method => {
-             let checkbox = document.getElementById(method);
-             if (checkbox && checkbox.checked) {
-                 selectedMethods.push(checkbox.value);
-             }
-         });
+     
 
-        //  console.log("checked method is ", selectedMethods);
-        for(m of selectedMethods){
-          handleProjection(m)
-        }
-         
+      if (timeSeries.checked) {
+          let selectedMethods = [];
+          let methods = [
+              "arithmetic-increase",
+              "geometric-increase",
+              "logistic-growth",
+              "exponential-growth",
+              "incremental-growth"
+          ];
 
+          methods.forEach(method => {
+              let checkbox = document.getElementById(method);
+              if (checkbox && checkbox.checked) {
+                  selectedMethods.push(checkbox.value);
+              }
+          });
+
+          async function processMethods() {
+              let list = [];
+              await Promise.all(selectedMethods.map(m => handleProjection(m, list)));
+              console.log("Updated list:", JSON.stringify(list, null, 2));
+
+              let summedList = {};
+
+              // Check if list has data
+              if (list.length === 0) {
+                  console.error("Error: list is empty!");
+                  return;
+              }
+          
+              list.forEach((methodData, index) => {
+                  console.log(`Processing method ${index}:`, methodData);
+          
+                  let outerMethodName = Object.keys(methodData)[0]; // Extract top-level method key
+                  let innerData = methodData[outerMethodName];  // Get the next-level object
+                  let methodName = Object.keys(innerData)[0]; // Extract the actual method name
+                  let villageData = innerData[methodName]; // Extract village population data
+          
+                  if (!summedList[methodName]) {
+                      summedList[methodName] = {};
+                  }
+          
+                  for (let villageId in villageData) {
+                      let yearData = villageData[villageId];
+          
+                      for (let year in yearData) {
+                          if (year === "Growth Percent") continue;  // *Skip Growth Percent*
+                          let population = Number(yearData[year]); // Ensure numerical addition
+                          if (!isNaN(population)) {
+                              summedList[methodName][year] = (summedList[methodName][year] || 0) + population;
+                          } else {
+                              console.warn(`Skipping invalid population data for ${methodName}, Year: ${year}`);
+                          }
+                      }
+                  }
+              });
+          
+              console.log("Summed List:", JSON.stringify(summedList, null, 2));
+              renderTable(summedList);
+              displayTable(summedList);
+
+              // Ensure the button appears only after the table is displayed
+              toggleButton.style.display = 'block';
+
+              // Toggle Button Functionality (Only for Graph)
+              toggleButton.addEventListener('click', function (e) {
+                  e.preventDefault();
+                  
+                  if (chartContainer.style.display === 'none') {
+                      chartContainer.style.display = 'block';
+                      toggleButton.textContent = 'Hide Histogram';
+                      displayLineGraph(summedList);  // Generate Chart
+                  } else {
+                      chartContainer.style.display = 'none';
+                      toggleButton.textContent = 'Show Histogram';
+                  }
+              });
+
+
+          }
+
+          await processMethods();
       }
-      else if(demographic.checked){
+      else if (demographic.checked || cohort.checked || scenario.checked) {
+          alert("Feature not implemented yet");
+          return;
+      }
+  });
 
-      }
-      else if(cohort.checked){
-         alert("Working, not completed yet")
-         return;
-      }
-      else if(scenario.checked){
-        alert("Working, not completed yet")
-        return;
+   
 
-      }
-      
+
+// Helper Function to Generate Random Colors
+function getRandomColor() {
+  return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`;
+}
+// Function to render the table and then show the toggle button
+function renderTable(summedList) {
+  console.log("andar renderGraph");
   
-    });
-    
+  let tableHTML = '<table class="table table-bordered"><thead><tr><th>Year</th>';
 
-    let alertShown = false;
-    // Function to handle projection logic
-    function handleProjection(projectionMethod) {
-      if(alertShown) return true;
+  // Extract method names
+  let methods = Object.keys(summedList);
+  methods.forEach(method => {
+      tableHTML += `<th>${method}</th>`;
+  });
+
+  tableHTML += '</tr></thead><tbody>';
+
+  // Extract all years (sorted)
+  let allYears = new Set();
+  Object.values(summedList).forEach(yearData => {
+      Object.keys(yearData).forEach(year => allYears.add(year));
+  });
+  const sortedYears = [...allYears].sort((a, b) => a - b);
+
+  // Populate table rows
+  sortedYears.forEach(year => {
+      tableHTML += `<tr><td>${year}</td>`;
+      methods.forEach(method => {
+          tableHTML += `<td>${summedList[method][year] || 0}</td>`;
+      });
+      tableHTML += '</tr>';
+  });
+
+  tableHTML += '</tbody></table>';
+  resultsContainer.innerHTML = tableHTML;
+
+  // Show the toggle button after table is displayed
+  toggleButton.style.display = 'block';
+}
+
+function displayLineGraph(summedList) {
+  console.log("andar display LineGraph");
+  
+  const ctx = document.getElementById('summedChart').getContext('2d');
+
+  // Extract years (sorted)
+  let allYears = new Set();
+  Object.values(summedList).forEach(yearData => {
+      Object.keys(yearData).forEach(year => allYears.add(year));
+  });
+  const sortedYears = [...allYears].sort((a, b) => a - b);
+
+  // Extract Data for Each Method
+  let datasets = Object.entries(summedList).map(([method, yearData], index) => ({
+      label: method,
+      data: sortedYears.map(year => yearData[year] || 0),  // Ensure 0 if data missing
+      borderColor: getRandomColor(),  // For line charts, we use borderColor instead of backgroundColor
+      backgroundColor: 'transparent',  // Make the area under the line transparent
+      borderWidth: 2,
+      tension: 0.1  // Optional: slight curve to lines
+  }));
+
+  // Destroy previous chart if exists
+  if (summedChart) summedChart.destroy();
+
+  // Create new chart
+  summedChart = new Chart(ctx, {
+      type: 'line',  // Changed from 'bar' to 'line'
+      data: {
+          labels: sortedYears,
+          datasets: datasets
+      },
+      options: {
+          responsive: true,
+          plugins: {
+              legend: { position: 'top' },
+              title: { display: true, text: 'Population Projection Line Graph' }
+          },
+          scales: {
+              y: { 
+                  beginAtZero: false  // Changed to better visualize the data range
+              }
+          }
+      }
+  });
+}
+
+
+
+
+  function displayTable(summedList) {
+    console.log("andar display table");
+    
+    const resultsSection = document.getElementById('results-section');
+    const resultsContainer = document.getElementById('results-container');
+
+    // Clear previous results
+    resultsContainer.innerHTML = '';
+
+    if (Object.keys(summedList).length === 0) {
+        resultsContainer.innerHTML = "<p>No data available.</p>";
+        return;
+    }
+
+    // Create a responsive table container
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'table-responsive';
+    tableContainer.style.maxWidth = '100%';
+    tableContainer.style.overflowX = 'auto';
+
+    // Create table
+    const table = document.createElement('table');
+    table.className = 'table table-bordered table-hover';
+
+    // Extract all unique years
+    let allYears = new Set();
+    Object.values(summedList).forEach(yearData => {
+        Object.keys(yearData).forEach(year => allYears.add(year));
+    });
+
+    // Sort years in ascending order
+    const sortedYears = [...allYears].sort((a, b) => a - b);
+
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'bg-light';
+
+    // Add first column for method names
+    const methodHeader = document.createElement('th');
+    methodHeader.textContent = 'Projection Method';
+    methodHeader.style.position = 'sticky';
+    methodHeader.style.left = '0';
+    methodHeader.style.backgroundColor = '#f8f9fa';
+    methodHeader.style.zIndex = '1';
+    headerRow.appendChild(methodHeader);
+
+    // Add year columns
+    sortedYears.forEach(year => {
+        const yearHeader = document.createElement('th');
+        yearHeader.textContent = year;
+        headerRow.appendChild(yearHeader);
+    });
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Create table body
+    const tbody = document.createElement('tbody');
+
+    // Add rows for each projection method
+    Object.entries(summedList).forEach(([method, yearData]) => {
+        const row = document.createElement('tr');
+
+        // Add method name as first column
+        const methodCell = document.createElement('td');
+        methodCell.textContent = method;
+        methodCell.className = 'fw-bold';
+        methodCell.style.position = 'sticky';
+        methodCell.style.left = '0';
+        methodCell.style.backgroundColor = '#ffffff';
+        methodCell.style.zIndex = '1';
+        row.appendChild(methodCell);
+
+        // Add summed population data for each year
+        sortedYears.forEach(year => {
+            const dataCell = document.createElement('td');
+            dataCell.textContent = yearData[year] ? yearData[year].toLocaleString() : '-';
+            row.appendChild(dataCell);
+        });
+
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    resultsContainer.appendChild(tableContainer);
+
+    // Show results section
+    resultsSection.style.display = 'block';
+}
+
+
+  let alertShown = false;
+  async function handleProjection(projectionMethod, list) {
+      if (alertShown) return;
+
       const state = document.getElementById('state').value;
       const district = document.getElementById('district').value;
       const subdistrict = document.getElementById('subdistrict').value;
-
-      const selectedVillages = Array.from(
-        document.querySelectorAll('#town-village-container input[type="checkbox"]:checked')
-      ).map(village => village.id);
-
+      const selectedVillages = Array.from(document.querySelectorAll('#town-village-container input[type="checkbox"]:checked'))
+          .map(village => village.id);
       const baseYear = document.getElementById('base-year').value;
-
       const yearSelection = document.querySelector('input[name="year_selection"]:checked')?.value;
+
       let targetYear = null;
       let targetYearRange = null;
 
       if (yearSelection === 'single') {
-        targetYear = targetYearInput.value;
-       
+          targetYear = targetYearInput.value;
       } else if (yearSelection === 'range') {
-        targetYearRange = {
-          start: targetYearRangeStart.value,
-          end: targetYearRangeEnd.value,
-        };
+          targetYearRange = {
+              start: targetYearRangeStart.value,
+              end: targetYearRangeEnd.value,
+          };
       }
 
-      // Validate inputs
-      if (!state || selectedVillages.length === 0 || !projectionMethod ||
-        (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
-        alertShown =true; // prevent further alerts
-        alert('Please fill out all required fields.');
-        setTimeout(() => {alertShown=false},1000)  //reset alert flag after 1 second 
-        return;
+      if (!state || selectedVillages.length === 0 || !projectionMethod || (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
+          alertShown = true;
+          alert('Please fill out all required fields.');
+          setTimeout(() => { alertShown = false }, 1000);
+          return;
       }
 
-      alertShown  =false; //Reset after validation
-
+      alertShown = false;
 
       const requestData = {
-        state,
-        district,
-        subdistrict,
-        villages: selectedVillages,
-        baseYear,
-        projectionMethod,
-        targetYear,
-        targetYearRange,
-        csrfmiddlewaretoken: '{{ csrf_token }}',
+          state,
+          district,
+          subdistrict,
+          villages: selectedVillages,
+          baseYear,
+          projectionMethod,
+          targetYear,
+          targetYearRange,
+          csrfmiddlewaretoken: '{{ csrf_token }}',
       };
 
-      // Fetch data and populate table
-      fetch('/population/calculate/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.result) {
-            console.log("fetched result be ", data.result);
-            displayResults(data.result)
-
-
-          
-          } else {
-            alert('Error: ' + (data.error || 'No data returned'));
-          }
-        })
-        .catch(error => {
-          console.error('Fetch error:', error);
-          alert('An unexpected error occurred.');
-        });
-       
-    }
-
-    function formatMethodName(method) {
-      return method.split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ') + ' Method';
-    }
-
-    const resultsSection = document.getElementById('results-section');
-    const resultsContainer = document.getElementById('results-container');
-
-    function displayResults(data) {
-      
-      
-      console.log(" i am displayresults");
-      console.log(data);
-      
-      
-      resultsContainer.innerHTML = '';
-      
-      // Process and display each prediction method
-      for (const [method, villageData] of Object.entries(data)) {
-        // Create method header
-        const methodHeader = document.createElement('h5');
-        methodHeader.textContent = formatMethodName(method);
-        methodHeader.className = 'mt-4 mb-3';
-        resultsContainer.appendChild(methodHeader);
-        
-        // Create table
-        const table = document.createElement('table');
-        table.className = 'table table-bordered table-hover';
-        
-        // Create table header
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        headerRow.className = 'bg-light';
-        
-        // Add Village/Town ID column
-        const idHeader = document.createElement('th');
-        idHeader.textContent = 'Village/Town ID';
-        headerRow.appendChild(idHeader);
-        
-        // Get all years from the data
-        const years = new Set();
-        Object.values(villageData).forEach(yearData => {
-          Object.keys(yearData).forEach(year => years.add(parseInt(year)));
-        });
-        
-        // Convert to array and sort
-        const sortedYears = Array.from(years).sort((a, b) => a - b);
-        
-        // Add year columns
-        sortedYears.forEach(year => {
-          const yearHeader = document.createElement('th');
-          yearHeader.textContent = year;
-          headerRow.appendChild(yearHeader);
-        });
-        
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-        
-        // Create table body
-        const tbody = document.createElement('tbody');
-        
-        // Add rows for each village/town
-        for (const [villageId, yearData] of Object.entries(villageData)) {
-          const row = document.createElement('tr');
-          
-          // Add village/town ID cell
-          const idCell = document.createElement('td');
-          idCell.textContent = villageId;
-          idCell.className = 'fw-bold';
-          row.appendChild(idCell);
-          
-          // Add population data for each year
-          sortedYears.forEach(year => {
-            const dataCell = document.createElement('td');
-            const population = yearData[year];
-            
-            if (population !== undefined) {
-              dataCell.textContent = population.toLocaleString();
-              
-              // Highlight cells for forecasted years (beyond 2011)
-              if (year > 2011) {
-                dataCell.className = 'bg-light-blue';
-              }
-            } else {
-              dataCell.textContent = 'N/A';
-              dataCell.className = 'text-muted';
-            }
-            
-            row.appendChild(dataCell);
+      try {
+          const response = await fetch('/population/calculate/', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestData),
           });
-          
-          tbody.appendChild(row);
-        }
-        
-        table.appendChild(tbody);
-        resultsContainer.appendChild(table);
+
+          const data = await response.json();
+
+          if (data.success && data.result) {
+              console.log("Fetched result:", data.result);
+              list.push({ [projectionMethod]: data.result });  // Store properly
+          }
+      } catch (error) {
+          console.error("Error fetching data:", error);
       }
-    
-    }
+  }
 });
 
 
