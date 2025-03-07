@@ -1,14 +1,7 @@
 let code_to_villagename = {};
 let villagePopulations = {};
 let chartInstances = {};
-const sampleData = {
-  "incremental-growth": {
-    "162853": {2011: 981, 2020: 1112, 2021: 1128, 2022: 1144, 2023: 1160, 2024: 1177, 2025: 1194},
-    "162856": {2011: 30, 2020: 34, 2021: 34, 2022: 34, 2023: 35, 2024: 36, 2025: 36},
-    "162908": {2011: 588, 2020: 666, 2021: 676, 2022: 685, 2023: 695, 2024: 705, 2025: 715}
-  }
-  // Additional methods could be added here when you have more data
-};
+
 document.addEventListener('DOMContentLoaded', () => {
     // Fetch states on page load
     fetch('/population/get-states/')
@@ -310,11 +303,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   
                   if (chartContainer.style.display === 'none') {
                       chartContainer.style.display = 'block';
-                      toggleButton.textContent = 'Hide Histogram';
+                      toggleButton.textContent = 'Update graph';
                       displayLineGraph(summedList);  // Generate Chart
                   } else {
                       chartContainer.style.display = 'none';
-                      toggleButton.textContent = 'Show Histogram';
+                      toggleButton.textContent = 'Update graph';
                   }
               });
 
@@ -323,19 +316,158 @@ document.addEventListener('DOMContentLoaded', () => {
 
           await processMethods();
       }
-      else if (demographic.checked || cohort.checked || scenario.checked) {
-          alert("Feature not implemented yet");
+      else if(demographic.checked){
+          const birthRate = document.getElementById("birth-rate").value;
+          const deathRate = document.getElementById("death-rate").value;
+          const emigrationRate = document.getElementById("emigration-rate").value;
+          const immigrationRate = document.getElementById("immigration-rate").value;
+
+          // Check if any field is empty
+          if (!birthRate || !deathRate || !emigrationRate || !immigrationRate) {
+            alert("Please fill in all rate fields before continuing.");
+            return; // Exit the function
+          }
+
+          calculateDemographic();
+
+
+
+
+      }
+      else if (cohort.checked || scenario.checked) {
+          alert("Feature not implemented yet, working!");
           return;
       }
   });
 
+// ----------------------------------------------------------- demographic calculationStart----------------------------------
+
+// Async function to handle demographic calculations
+async function calculateDemographic() {
+  const state = document.getElementById('state').value;
+  const district = document.getElementById('district').value;
+  const subdistrict = document.getElementById('subdistrict').value;
+      
+  const singleYearOption = document.getElementById('single-year-option');
+  const rangeYearOption = document.getElementById('range-year-option');
+  const targetYearInput = document.getElementById('target-year');
+  const targetYearRangeStart = document.getElementById('target-year-range-start');
+  const targetYearRangeEnd = document.getElementById('target-year-range-end');
+  const birthRate = document.getElementById("birth-rate").value;
+  const deathRate = document.getElementById("death-rate").value;
+  const emigrationRate = document.getElementById("emigration-rate").value;
+  const immigrationRate = document.getElementById("immigration-rate").value;
+  const selectedVillages = Array.from(
+    document.querySelectorAll('#town-village-container input[type="checkbox"]:checked')
+  ).map(village => village.id);
+  const baseYear = document.getElementById('base-year').value;
+  const yearSelection = document.querySelector('input[name="year_selection"]:checked')?.value;
+  let targetYear = null;
+  let targetYearRange = null;
+
+  // Handle year selection options
+  singleYearOption.addEventListener('change', () => {
+    targetYearInput.disabled = false;
+    targetYearRangeStart.disabled = true;
+    targetYearRangeEnd.disabled = true;
+  });
+  rangeYearOption.addEventListener('change', () => {
+    targetYearInput.disabled = true;
+    targetYearRangeStart.disabled = false;
+    targetYearRangeEnd.disabled = false;
+  });
+  
+  if (yearSelection === 'single') {
+    targetYear = targetYearInput.value;
+  } else if (yearSelection === 'range') {
+    targetYearRange = {
+      start: targetYearRangeStart.value,
+      end: targetYearRangeEnd.value,
+    };
+  }
+  console.log("Birth rate = ", birthRate);
+  console.log("Death rate = ", deathRate);
+  console.log("emigration rate = ", emigrationRate);
+  console.log("immigration rate = ", immigrationRate);
+  
+  // Validate inputs
+  if (!state || selectedVillages.length === 0 || !birthRate || !deathRate || !emigrationRate || !immigrationRate ||
+    (!targetYear && (!targetYearRange || !targetYearRange.start || !targetYearRange.end))) {
+    alert('Please fill out all required fields.');
+    return;
+  }
+  
+  const requestData = {
+    state,
+    district,
+    subdistrict,
+    villages: selectedVillages,
+    baseYear,
+    targetYear,
+    targetYearRange,
+    birthRate,
+    deathRate,
+    emigrationRate,
+    immigrationRate,
+  };
+  
+  try {
+    const response = await fetch("/population/calculate-demographic/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestData),
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.result) {
+      console.log("result demographic = ", data.result);
+      // Handle the result data here
+
+      let fetchedData = data.result
+      
+      const summedList = { "demographic-calculation": {} };
+
+      Object.values(fetchedData["demographic-attribute"]).forEach(entry => {
+        Object.entries(entry).forEach(([year, value]) => {
+          summedList["demographic-calculation"][year] = 
+            (summedList["demographic-calculation"][year] || 0) + value;
+        });
+      });
+      
+      console.log(summedList);
+      renderTable(summedList);
+      displayTable(summedList);
+
+      // Ensure the button appears only after the table is displayed
+      toggleButton.style.display = 'block';
+
+      // Toggle Button Functionality (Only for Graph)
+      toggleButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          
+          if (chartContainer.style.display === 'none') {
+              chartContainer.style.display = 'block';
+              toggleButton.textContent = 'Update Graph';
+              displayLineGraph(summedList);  // Generate Chart
+          } else {
+              chartContainer.style.display = 'none';
+              toggleButton.textContent = 'Update Graph';
+          }
+      });
+    } else {
+      console.error("Calculation failed:", data.error || "Unknown error");
+      alert("Failed to calculate demographic data. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error calculating demographic data:", error);
+    alert("An error occurred while calculating demographic data. Please try again.");
+  }
+}
+// -----------------------------------------------------------  demographic calculationEnd-----------------------------------
    
 
 
-// Helper Function to Generate Random Colors
-function getRandomColor() {
-  return `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`;
-}
 // Function to render the table and then show the toggle button
 function renderTable(summedList) {
   console.log("andar renderGraph");
@@ -375,8 +507,17 @@ function renderTable(summedList) {
 
 function displayLineGraph(summedList) {
   console.log("andar display LineGraph");
-  
+
   const ctx = document.getElementById('summedChart').getContext('2d');
+
+ // Predefined dark colors for lines
+const fixedColors = [
+  'rgb(128, 0, 0)',      // Dark Red
+  'rgb(0, 247, 247)',     
+  'rgb(75, 0, 130)',     // Indigo
+  'rgb(0, 100, 0)',      // Dark Green
+  'rgb(255, 140, 0)'     // Dark Orange
+];
 
   // Extract years (sorted)
   let allYears = new Set();
@@ -388,9 +529,9 @@ function displayLineGraph(summedList) {
   // Extract Data for Each Method
   let datasets = Object.entries(summedList).map(([method, yearData], index) => ({
       label: method,
-      data: sortedYears.map(year => yearData[year] || 0),  // Ensure 0 if data missing
-      borderColor: getRandomColor(),  // For line charts, we use borderColor instead of backgroundColor
-      backgroundColor: 'transparent',  // Make the area under the line transparent
+      data: sortedYears.map(year => yearData[year] || 0), // Ensure 0 if data missing
+      borderColor: fixedColors[index % fixedColors.length],  // Assign fixed colors
+      backgroundColor: 'transparent', // Transparent fill
       borderWidth: 2,
       tension: 0.1  // Optional: slight curve to lines
   }));
@@ -400,7 +541,7 @@ function displayLineGraph(summedList) {
 
   // Create new chart
   summedChart = new Chart(ctx, {
-      type: 'line',  // Changed from 'bar' to 'line'
+      type: 'line',
       data: {
           labels: sortedYears,
           datasets: datasets
@@ -413,12 +554,13 @@ function displayLineGraph(summedList) {
           },
           scales: {
               y: { 
-                  beginAtZero: false  // Changed to better visualize the data range
+                  beginAtZero: false  // Adjust based on data
               }
           }
       }
   });
 }
+
 
 
 
